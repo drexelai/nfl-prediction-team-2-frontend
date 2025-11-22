@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NFL Predictions App
+
+A Next.js application for viewing NFL games and predictions. This app provides comprehensive NFL game data including schedules, box scores, and statistics through a backend API that integrates with Sportradar.
+
+## Features
+
+- 📅 View current week and full season schedules
+- 📊 Access detailed game box scores and statistics
+- 🔮 Prediction system integration (LLM-powered)
+- ⚡ Fast API responses with caching
+- 🎯 TypeScript support with comprehensive type definitions
+- 🔄 Automatic retry logic and error handling
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+1. Node.js 18+ installed
+2. A Sportradar API key (free 30-day trial available at [developer.sportradar.com](https://developer.sportradar.com))
+
+### Setup
+
+1. Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+2. Create a `.env.local` file in the root directory with your Sportradar credentials:
+
+```bash
+SPORTRADAR_API_KEY=your_api_key_here
+SPORTRADAR_ACCESS_LEVEL=trial
+SPORTRADAR_LANGUAGE=en
+```
+
+(See `.env.example` for a template)
+
+3. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Endpoints
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The backend API provides the following endpoints:
 
-## Learn More
+- `GET /api/nfl/schedule/week` - Current week's schedule
+- `GET /api/nfl/schedule/season` - Full season schedule
+- `GET /api/nfl/games/[gameId]/boxscore` - Game box score with player stats
+- `GET /api/nfl/games/[gameId]/statistics` - Detailed game statistics
 
-To learn more about Next.js, take a look at the following resources:
+For complete API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── api/nfl/              # API routes
+│   │   ├── schedule/
+│   │   │   ├── week/         # Week schedule endpoint
+│   │   │   └── season/       # Season schedule endpoint
+│   │   └── games/[gameId]/
+│   │       ├── boxscore/     # Game boxscore endpoint
+│   │       └── statistics/   # Game statistics endpoint
+│   ├── page.tsx              # Home page
+│   └── layout.tsx            # Root layout
+├── lib/
+│   ├── sportradar.ts         # Sportradar API client
+│   └── utils.ts              # Utility functions
+└── types/
+    └── nfl.ts                # TypeScript type definitions
+```
 
-## Deploy on Vercel
+## Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+You can start editing pages by modifying files in `src/app/`. The page auto-updates as you edit files.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### TypeScript Types
+
+All NFL data types are defined in `src/types/nfl.ts` and can be imported:
+
+```typescript
+import type { WeekSchedule, GameBoxScore, GameStatistics } from '@/types/nfl';
+```
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** Radix UI / shadcn/ui
+- **API:** Sportradar NFL Official API
+- **Deployment:** Vercel (recommended)
+
+## Resources
+
+- [API Documentation](./API_DOCUMENTATION.md) - Complete API endpoint documentation
+- [Sportradar API Docs](https://developer.sportradar.com/nfl/reference) - Official Sportradar documentation
+- [Next.js Documentation](https://nextjs.org/docs) - Next.js features and API
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/) - TypeScript reference
+
+## Contributing
+
+This is a club project. Please coordinate with team members before making significant changes.
+
+## License
+
+This project is for educational purposes.
