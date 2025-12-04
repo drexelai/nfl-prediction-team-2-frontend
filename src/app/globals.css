@@ -120,3 +120,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/10 dark:bg-white/5 backdrop-blur-lg border border-white/20;
+  }
+
+  .gradient-bg {
+    @apply bg-linear-to-br from-slate-900 via-purple-900 to-slate-900;
+  }
+
+  .glass-button {
+    @apply bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:border-white/30 transition-all duration-300;
+  }
+}
