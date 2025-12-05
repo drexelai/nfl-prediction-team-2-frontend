@@ -1,74 +1,61 @@
-import Link from "next/link";
+import React from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { HeroHeader } from "@/components/header"
+import { ChevronRight } from 'lucide-react'
 
 export default function Home() {
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center">
-      <main className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-8">
-            <div className="inline-block mb-6">
-              <div className="text-6xl font-bold bg-linear-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                🏈
+    <>
+      <HeroHeader />
+      <main className="overflow-x-hidden">
+        <section>
+          <div className="relative min-h-screen py-24 md:pb-32 lg:pb-36 lg:pt-72">
+            <div className="relative mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
+              <div className="mx-auto max-w-lg text-center lg:ml-0 lg:max-w-full lg:text-left">
+                <h1 className="mt-8 max-w-2xl text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl drop-shadow-lg">Win Smarter. Every Sunday.</h1>
+                <p className="mt-8 max-w-2xl text-balance text-lg">Stop guessing, start predicting with next-level AI intelligence.</p>
+
+                <div className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="rounded-full pl-5 pr-3 text-base">
+                    <Link href="#link">
+                      <span className="text-nowrap">Get Started</span>
+                      <ChevronRight className="ml-1" />
+                    </Link>
+                  </Button>
+                  <Button
+                    key={2}
+                    asChild
+                    size="lg"
+                    variant="ghost"
+                    className="h-12 rounded-full px-5 text-base hover:bg-zinc-950/5 dark:hover:bg-white/5">
+                    <Link href="#link">
+                      <span className="text-nowrap">Request a demo</span>
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-              NFL Predictions
-            </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-2xl mx-auto">
-              View live scores, schedules, and AI-powered predictions for all NFL games
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-            <Link
-              href="/games"
-              className="group relative px-8 py-4 bg-linear-to-r from-purple-600 to-pink-600 rounded-lg font-semibold text-white text-lg hover:scale-105 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/50 w-full sm:w-auto"
-            >
-              <span className="relative z-10">View Games</span>
-              <div className="absolute inset-0 bg-linear-to-r from-purple-700 to-pink-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </Link>
-
-            <Link
-              href="/games"
-              className="px-8 py-4 glass-button rounded-lg font-semibold text-white text-lg hover:scale-105 transition-all duration-300 w-full sm:w-auto"
-            >
-              Explore Schedule
-            </Link>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="glass-card p-6 rounded-xl hover:scale-105 transition-all duration-300">
-              <div className="text-3xl mb-4">📅</div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Live Schedules
-              </h3>
-              <p className="text-gray-400">
-                View current week and full season schedules with real-time updates
-              </p>
-            </div>
-
-            <div className="glass-card p-6 rounded-xl hover:scale-105 transition-all duration-300">
-              <div className="text-3xl mb-4">📊</div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Game Statistics
-              </h3>
-              <p className="text-gray-400">
-                Access detailed box scores and player statistics for every game
-              </p>
-            </div>
-
-            <div className="glass-card p-6 rounded-xl hover:scale-105 transition-all duration-300">
-              <div className="text-3xl mb-4">🔮</div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                AI Predictions
-              </h3>
-              <p className="text-gray-400">
-                Get intelligent predictions powered by advanced analytics
-              </p>
+            <div className="absolute inset-0 -z-10 overflow-hidden border border-black/10 dark:border-white/5">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="size-full object-cover opacity-50 invert dark:opacity-35 dark:invert-0 dark:lg:opacity-75"
+                src="https://www.pexels.com/download/video/8799171/"></video>
             </div>
           </div>
-        </div>
+        </section>
       </main>
-    </div>
-  );
+      <section>
+        <div className="relative mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
+          <h2 className="mt-8 max-w-2xl text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl drop-shadow-lg">How it works</h2>
+        </div>
+      </section>
+    </>
+  )
 }
