@@ -7,7 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Game, SeasonSchedule } from '@/types/nfl';
 import { getTeamLogoUrl } from '@/lib/team-logos';
-import { getCachedGames } from '@/lib/game-cache';
+import { useGameStore } from '@/lib/game-store';
 
 interface GameSearchResult {
   game: Game;
@@ -282,6 +282,8 @@ export const NFLGameSearch = ({ isOpen = true, handleClose = () => {} }: NFLGame
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const { getGamesWithScores } = useGameStore();
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -300,14 +302,7 @@ export const NFLGameSearch = ({ isOpen = true, handleClose = () => {} }: NFLGame
         if (!response.ok) throw new Error('Failed to fetch games');
         const data: SeasonSchedule = await response.json();
         const games = data.weeks.flatMap((week) => week.games || []);
-
-        const cachedScores = getCachedGames();
-        const gamesWithScores = games.map(game => {
-          const cachedGame = cachedScores.get(game.id);
-          return cachedGame || game;
-        });
-
-        setAllGames(gamesWithScores);
+        setAllGames(games);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching games:', error);
@@ -372,13 +367,18 @@ export const NFLGameSearch = ({ isOpen = true, handleClose = () => {} }: NFLGame
     setAllGames([...filtered, ...allGames]);
   };
 
+  const gamesWithCachedScores = React.useMemo(() => {
+    const result = getGamesWithScores(allGames);
+    return result;
+  }, [allGames, getGamesWithScores]);
+
   const searchResults: GameSearchResult[] = React.useMemo(() => {
     if (!searchValue.trim()) return [];
 
     const searchLower = searchValue.toLowerCase();
     const results: GameSearchResult[] = [];
 
-    allGames.forEach((game) => {
+    gamesWithCachedScores.forEach((game) => {
       const awayName = game.away.name.toLowerCase();
       const awayAlias = game.away.alias.toLowerCase();
       const homeName = game.home.name.toLowerCase();
@@ -418,7 +418,7 @@ export const NFLGameSearch = ({ isOpen = true, handleClose = () => {} }: NFLGame
     });
 
     return results.slice(0, 15);
-  }, [searchValue, allGames]);
+  }, [searchValue, gamesWithCachedScores]);
 
   return (
     <AnimatePresence mode="wait">

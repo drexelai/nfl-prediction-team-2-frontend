@@ -15,19 +15,6 @@ export function GameCard({ game }: GameCardProps) {
   const homePoints = game.home.points;
   const hasScores = awayPoints !== undefined && homePoints !== undefined;
 
-  if (isCompleted) {
-    console.log("🎮 [GameCard] Completed game:", {
-      id: game.id,
-      status: game.status,
-      away: `${game.away.alias} - ${awayPoints}`,
-      home: `${game.home.alias} - ${homePoints}`,
-      hasScores,
-      scheduled: game.scheduled,
-      fullAwayTeam: game.away,
-      fullHomeTeam: game.home
-    });
-  }
-
   const gameDate = new Date(game.scheduled);
   const formattedDate = gameDate.toLocaleDateString("en-US", {
     weekday: "short",

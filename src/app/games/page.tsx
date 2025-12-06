@@ -4,12 +4,11 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { GameCard } from "@/components/game-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Game, WeekSchedule, GameBoxScore } from "@/types/nfl";
-import { getCachedGames, cacheMultipleGames } from "@/lib/game-cache";
+import { useGameStore } from "@/lib/game-store";
 
 export default function GamesPage() {
   const [schedule, setSchedule] = useState<WeekSchedule | null>(null);
   const [allWeeksData, setAllWeeksData] = useState<Game[]>([]);
-  const [gamesWithScores, setGamesWithScores] = useState<Map<string, Game>>(new Map());
   const [loading, setLoading] = useState(true);
   const [loadingScores, setLoadingScores] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,45 +19,39 @@ export default function GamesPage() {
 
   const upcomingObserverRef = useRef<HTMLDivElement>(null);
   const completedObserverRef = useRef<HTMLDivElement>(null);
+  const fetchStartedRef = useRef(false);
+
+  const { getGame, setGame, getGamesWithScores, getCacheStats } = useGameStore();
 
   useEffect(() => {
+    if (fetchStartedRef.current) return;
+    fetchStartedRef.current = true;
+
+    const abortController = new AbortController();
+
     async function fetchSchedule() {
       try {
         setLoading(true);
-        console.log("🏈 [Games Page] Starting to fetch schedule...");
 
-        const currentWeekResponse = await fetch("/api/nfl/schedule/week");
+        const currentWeekResponse = await fetch("/api/nfl/schedule/week", { signal: abortController.signal });
         if (!currentWeekResponse.ok) {
           throw new Error("Failed to fetch schedule");
         }
         const currentWeekData: WeekSchedule = await currentWeekResponse.json();
-        console.log("🏈 [Games Page] Current week data:", {
-          year: currentWeekData.year,
-          type: currentWeekData.type,
-          week: currentWeekData.week.sequence,
-          totalGames: currentWeekData.week.games?.length,
-          sampleGame: currentWeekData.week.games?.[0]
-        });
-
         setSchedule(currentWeekData);
 
         const currentWeekNum = currentWeekData.week.sequence;
         const allGames: Game[] = [...(currentWeekData.week.games || [])];
 
-        console.log("🏈 [Games Page] Fetching weeks", Math.max(1, currentWeekNum - 3), "to", Math.min(18, currentWeekNum + 3));
-
         const weekPromises = [];
         for (let i = Math.max(1, currentWeekNum - 3); i <= Math.min(18, currentWeekNum + 3); i++) {
           if (i !== currentWeekNum) {
             weekPromises.push(
-              fetch(`/api/nfl/schedule/week?week=${i}&year=${currentWeekData.year}&type=${currentWeekData.type}`)
+              fetch(`/api/nfl/schedule/week?week=${i}&year=${currentWeekData.year}&type=${currentWeekData.type}`, { signal: abortController.signal })
                 .then(res => res.ok ? res.json() : null)
-                .then((data: WeekSchedule | null) => {
-                  console.log(`🏈 [Games Page] Week ${i} data:`, data?.week?.games?.length, "games");
-                  return data?.week?.games || [];
-                })
+                .then((data: WeekSchedule | null) => data?.week?.games || [])
                 .catch((err) => {
-                  console.error(`🏈 [Games Page] Error fetching week ${i}:`, err);
+                  if (err.name === 'AbortError') return [];
                   return [];
                 })
             );
@@ -68,43 +61,32 @@ export default function GamesPage() {
         const additionalWeeks = await Promise.all(weekPromises);
         additionalWeeks.forEach(games => allGames.push(...games));
 
-        console.log("🏈 [Games Page] Total games fetched:", allGames.length);
-
         setAllWeeksData(allGames);
         setLoading(false);
-
-        const cachedScores = getCachedGames();
-        setGamesWithScores(cachedScores);
 
         const completedGameIds = allGames
           .filter(g => g.status === "complete" || g.status === "closed")
           .map(g => g.id);
 
-        const uncachedGameIds = completedGameIds.filter(id => !cachedScores.has(id));
+        const uncachedGameIds = completedGameIds.filter(id => !getGame(id));
 
-        if (uncachedGameIds.length === 0) {
-          console.log("💾 [Games Page] All completed games already cached!");
-          return;
-        }
+        if (uncachedGameIds.length === 0) return;
 
-        console.log("🏈 [Games Page] Fetching", uncachedGameIds.length, "uncached boxscores");
         setLoadingScores(true);
-
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-        const newScoresMap = new Map<string, Game>(cachedScores);
 
         let consecutiveErrors = 0;
         const maxConsecutiveErrors = 3;
 
         for (let i = 0; i < uncachedGameIds.length; i++) {
+          if (abortController.signal.aborted) break;
+
           const gameId = uncachedGameIds[i];
 
           try {
-            if (i > 0) {
-              await delay(500);
-            }
+            if (i > 0) await delay(500);
 
-            const response = await fetch(`/api/nfl/games/${gameId}/boxscore`);
+            const response = await fetch(`/api/nfl/games/${gameId}/boxscore`, { signal: abortController.signal });
 
             if (response.ok) {
               consecutiveErrors = 0;
@@ -115,65 +97,48 @@ export default function GamesPage() {
               if (awayPoints !== undefined && homePoints !== undefined) {
                 const originalGame = allGames.find(g => g.id === gameId);
                 if (originalGame) {
-                  const gameWithScore = {
+                  setGame({
                     ...originalGame,
                     away: { ...originalGame.away, points: awayPoints },
                     home: { ...originalGame.home, points: homePoints }
-                  };
-
-                  newScoresMap.set(gameId, gameWithScore);
-                  setGamesWithScores(new Map(newScoresMap));
-                  console.log("✅ [Games Page]", i + 1, "/", uncachedGameIds.length, "-", originalGame.away.alias, "vs", originalGame.home.alias, ":", awayPoints, "-", homePoints);
+                  });
                 }
               }
             } else if (response.status === 429) {
               consecutiveErrors++;
-              console.warn("⚠️ [Games Page] Rate limited on game", i + 1, "- waiting 5s before retry...");
               await delay(5000);
               i--;
-
-              if (consecutiveErrors >= maxConsecutiveErrors) {
-                console.error("❌ [Games Page] Too many consecutive rate limits. Stopping after", i + 1, "games. Try refreshing later.");
-                break;
-              }
+              if (consecutiveErrors >= maxConsecutiveErrors) break;
             } else {
               consecutiveErrors++;
-              console.error("📦 [Games Page] Failed to fetch boxscore, status:", response.status);
-
-              if (consecutiveErrors >= maxConsecutiveErrors) {
-                console.error("❌ [Games Page] Too many consecutive errors. Stopping.");
-                break;
-              }
+              if (consecutiveErrors >= maxConsecutiveErrors) break;
             }
           } catch (err) {
+            if (err instanceof Error && err.name === 'AbortError') break;
             consecutiveErrors++;
-            console.error("📦 [Games Page] Error fetching boxscore:", err);
-
-            if (consecutiveErrors >= maxConsecutiveErrors) {
-              console.error("❌ [Games Page] Too many consecutive errors. Stopping.");
-              break;
-            }
+            if (consecutiveErrors >= maxConsecutiveErrors) break;
           }
         }
 
-        cacheMultipleGames(newScoresMap);
-        setLoadingScores(false);
-        console.log("💾 [Games Page] Cached", newScoresMap.size - cachedScores.size, "new scores. Total cached:", newScoresMap.size);
+        if (!abortController.signal.aborted) {
+          setLoadingScores(false);
+        }
       } catch (err) {
-        console.error("🏈 [Games Page] Error:", err);
+        if (err instanceof Error && err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : "An error occurred");
         setLoading(false);
       }
     }
 
     fetchSchedule();
-  }, []);
+
+    return () => {
+      abortController.abort();
+    };
+  }, [getGame, setGame, getCacheStats]);
 
   const allGames = allWeeksData.length > 0 ? allWeeksData : (schedule?.week?.games || []);
-
-  const allGamesWithScores = allGames.map(game =>
-    gamesWithScores.has(game.id) ? gamesWithScores.get(game.id)! : game
-  );
+  const allGamesWithScores = getGamesWithScores(allGames);
 
   const upcomingGames = allGamesWithScores
     .filter((game) => game.status === "scheduled")
@@ -189,62 +154,28 @@ export default function GamesPage() {
 
   const allUpcoming = [...inProgressGames, ...upcomingGames];
 
-  console.log("🏈 [Games Page] Game counts:", {
-    total: allGames.length,
-    upcoming: upcomingGames.length,
-    completed: completedGames.length,
-    inProgress: inProgressGames.length,
-    allUpcoming: allUpcoming.length,
-    gamesWithScores: gamesWithScores.size
-  });
 
   const hasMoreUpcoming = upcomingVisible < allUpcoming.length;
   const hasMoreCompleted = completedVisible < completedGames.length;
 
-  console.log("🏈 [Games Page] Scroll state:", {
-    upcomingVisible,
-    hasMoreUpcoming,
-    totalUpcoming: allUpcoming.length,
-    completedVisible,
-    hasMoreCompleted,
-    totalCompleted: completedGames.length
-  });
-
   const loadMoreUpcoming = useCallback(() => {
     setUpcomingVisible((prev) => {
-      const hasMore = prev < allUpcoming.length;
-      console.log("🏈 [Games Page] loadMoreUpcoming called, prev:", prev, "hasMore:", hasMore, "total:", allUpcoming.length);
-      if (!hasMore) {
-        console.log("🏈 [Games Page] No more upcoming games to load");
-        return prev;
-      }
-      const newVisible = Math.min(prev + 10, allUpcoming.length);
-      console.log("🏈 [Games Page] Loading more upcoming:", prev, "->", newVisible);
-      return newVisible;
+      if (prev >= allUpcoming.length) return prev;
+      return Math.min(prev + 10, allUpcoming.length);
     });
   }, [allUpcoming.length]);
 
   const loadMoreCompleted = useCallback(() => {
     setCompletedVisible((prev) => {
-      const hasMore = prev < completedGames.length;
-      console.log("🏈 [Games Page] loadMoreCompleted called, prev:", prev, "hasMore:", hasMore, "total:", completedGames.length);
-      if (!hasMore) {
-        console.log("🏈 [Games Page] No more completed games to load");
-        return prev;
-      }
-      const newVisible = Math.min(prev + 10, completedGames.length);
-      console.log("🏈 [Games Page] Loading more completed:", prev, "->", newVisible);
-      return newVisible;
+      if (prev >= completedGames.length) return prev;
+      return Math.min(prev + 10, completedGames.length);
     });
   }, [completedGames.length]);
 
   useEffect(() => {
-    console.log("🏈 [Games Page] Setting up observers for activeTab:", activeTab);
-
     const upcomingObserver = new IntersectionObserver(
       (entries) => {
         if (activeTab !== "upcoming") return;
-        console.log("🏈 [Games Page] Upcoming observer triggered:", entries[0].isIntersecting);
         if (entries[0].isIntersecting) {
           loadMoreUpcoming();
         }
@@ -255,7 +186,6 @@ export default function GamesPage() {
     const completedObserver = new IntersectionObserver(
       (entries) => {
         if (activeTab !== "completed") return;
-        console.log("🏈 [Games Page] Completed observer triggered:", entries[0].isIntersecting);
         if (entries[0].isIntersecting) {
           loadMoreCompleted();
         }
@@ -267,12 +197,10 @@ export default function GamesPage() {
     const completedRef = completedObserverRef.current;
 
     if (activeTab === "upcoming" && upcomingRef) {
-      console.log("🏈 [Games Page] Observing upcoming ref");
       upcomingObserver.observe(upcomingRef);
     }
 
     if (activeTab === "completed" && completedRef) {
-      console.log("🏈 [Games Page] Observing completed ref");
       completedObserver.observe(completedRef);
     }
 

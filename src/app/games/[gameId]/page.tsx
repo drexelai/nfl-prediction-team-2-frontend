@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { GameBoxScore, GameStatistics } from '@/types/nfl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getTeamLogoUrl } from '@/lib/team-logos';
+import { useGameStore } from '@/lib/game-store';
 import Image from 'next/image';
 import { ArrowLeft, Calendar, MapPin, Users, Clock, TrendingUp, Target, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,8 @@ export default function GameDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const setGame = useGameStore((state) => state.setGame);
+
   useEffect(() => {
     async function fetchGameData() {
       try {
@@ -33,6 +36,38 @@ export default function GameDetailPage() {
 
         const boxscoreData: GameBoxScore = await boxscoreRes.json();
         setBoxscore(boxscoreData);
+
+        const awayTeam = boxscoreData.summary?.away || boxscoreData.away;
+        const homeTeam = boxscoreData.summary?.home || boxscoreData.home;
+        const venue = boxscoreData.summary?.venue;
+        const isCompleted = boxscoreData.status === 'closed' || boxscoreData.status === 'complete';
+        if (awayTeam && homeTeam && boxscoreData.id && isCompleted && venue) {
+          setGame({
+            id: boxscoreData.id,
+            status: boxscoreData.status as 'closed' | 'complete',
+            scheduled: boxscoreData.scheduled,
+            sr_id: boxscoreData.sr_id,
+            game_type: boxscoreData.game_type as 'regular' | 'playoff' | 'preseason',
+            conference_game: boxscoreData.conference_game,
+            venue: venue,
+            away: {
+              id: awayTeam.id,
+              name: awayTeam.name,
+              alias: awayTeam.alias,
+              points: awayTeam.points,
+              game_number: 0,
+              sr_id: ''
+            },
+            home: {
+              id: homeTeam.id,
+              name: homeTeam.name,
+              alias: homeTeam.alias,
+              points: homeTeam.points,
+              game_number: 0,
+              sr_id: ''
+            }
+          });
+        }
 
         if (statsRes.ok) {
           const statsData: GameStatistics = await statsRes.json();
@@ -50,7 +85,7 @@ export default function GameDetailPage() {
     if (gameId) {
       fetchGameData();
     }
-  }, [gameId]);
+  }, [gameId, setGame]);
 
   if (loading) {
     return <GameDetailSkeleton />;
@@ -58,7 +93,7 @@ export default function GameDetailPage() {
 
   if (error || !boxscore) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
@@ -109,7 +144,7 @@ export default function GameDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/20 via-slate-900/0 to-slate-900/0 pointer-events-none" />
 
       <div className="container mx-auto px-4 py-8 relative z-10">
@@ -127,7 +162,7 @@ export default function GameDetailPage() {
         </div>
 
         <Card className="bg-slate-900/50 border-slate-800/50 backdrop-blur-xl mb-8 overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-linear-to-br from-cyan-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="absolute inset-0 border border-cyan-500/0 group-hover:border-cyan-500/20 rounded-lg transition-colors duration-500" />
 
           <CardContent className="p-8 relative z-10">
@@ -146,7 +181,7 @@ export default function GameDetailPage() {
                   <p className="text-gray-400 text-sm uppercase tracking-wider">{awayTeam?.alias}</p>
                 </div>
                 {(isCompleted || isLive) && (
-                  <div className="text-6xl font-bold bg-gradient-to-br from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                  <div className="text-6xl font-bold bg-linear-to-br from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                     {awayTeam?.points ?? 0}
                   </div>
                 )}
@@ -194,7 +229,7 @@ export default function GameDetailPage() {
                   <p className="text-gray-400 text-sm uppercase tracking-wider">{homeTeam?.alias}</p>
                 </div>
                 {(isCompleted || isLive) && (
-                  <div className="text-6xl font-bold bg-gradient-to-br from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                  <div className="text-6xl font-bold bg-linear-to-br from-purple-400 to-pink-500 bg-clip-text text-transparent">
                     {homeTeam?.points ?? 0}
                   </div>
                 )}
@@ -426,7 +461,7 @@ export default function GameDetailPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-white">{score.team.alias}</span>
+                        <span className="font-semibold text-white">{score.team?.alias || 'Unknown'}</span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold">
                           {score.type}
                         </span>
